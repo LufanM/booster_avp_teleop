@@ -1,0 +1,22 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "python": "/home/molufan/anaconda3/envs/robotics/bin/python3",  //指定python解释器
+            "name": "Python: train",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/plot.py",
+            "cwd": "${workspaceFolder}", //用于指定脚本所在目录，比如有的脚本需要先 cd 到 xxx 再运行。
+            "console": "integratedTerminal",
+            "env": {"CUDA_VISIBLE_DEVICES":"0,1"},   //指定显卡
+            "args": [
+ 
+            ],
+            "justMyCode": false   //调试封装包里面的代码，可以在里面打断点
+        }
+    ]
+}

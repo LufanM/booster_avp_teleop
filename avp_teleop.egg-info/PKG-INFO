@@ -1,0 +1,13 @@
+Metadata-Version: 2.1
+Name: avp-teleop
+Version: 1.0
+Summary: This python package streams diverse tracking data available from AVP to any devices that can communicate with gRPC.
+Home-page: UNKNOWN
+Author: Younghyo Park
+Author-email: younghyo@mit.edu
+License: UNKNOWN
+Platform: UNKNOWN
+License-File: LICENSE
+
+UNKNOWN
+
