@@ -28,7 +28,7 @@ class IsaacVisualizerEnv:
         self.gym = gymapi.acquire_gym()
  
         # set torch device
-        self.device = 'cpu'  # i'll just fix this to CUDA 
+        self.device = 'cpu'  # i'll just fix this to CUDA 	
 
         # configure sim
         self.sim_params = default_sim_params(use_gpu = True if self.device == 'cuda:0' else False) 
@@ -40,7 +40,7 @@ class IsaacVisualizerEnv:
         
         # load assets
         self.num_envs = 1
-
+	
         # create viewer
         self.viewer = self.gym.create_viewer(self.sim, gymapi.CameraProperties())
         if self.viewer is None:

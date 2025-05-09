@@ -12,6 +12,9 @@
         }
       }
     },
+    "Close Video Window" : {
+
+    },
     "Exit" : {
       "localizations" : {
         "ja" : {
@@ -66,6 +69,9 @@
         }
       }
     },
+    "Open Video Window" : {
+
+    },
     "Setting" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -86,6 +92,9 @@
           }
         }
       }
+    },
+    "Start Video Stream" : {
+
     },
     "Unit" : {
       "localizations" : {

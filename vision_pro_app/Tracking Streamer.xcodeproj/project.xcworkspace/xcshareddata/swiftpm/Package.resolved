@@ -1,5 +1,5 @@
 {
-  "originHash" : "b0d8975aa19f1bb7106ae78f24de3911e84189892afc3b6fe6db19bcec9e631c",
+  "originHash" : "d5f127e18777695b465a5b56a030b90320a4d642c4bdd4fa49cc87df902c7c2e",
   "pins" : [
     {
       "identity" : "grpc-swift",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "5d0cf1c7b2e641e3a8961089e7e4672f4fe8abac",
         "version" : "1.21.1"
+      }
+    },
+    {
+      "identity" : "starscream",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/daltoniam/Starscream",
+      "state" : {
+        "revision" : "c6bfd1af48efcc9a9ad203665db12375ba6b145a",
+        "version" : "4.0.8"
       }
     },
     {
