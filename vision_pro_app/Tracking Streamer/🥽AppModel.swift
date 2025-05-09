@@ -3,6 +3,8 @@ import RealityKit
 import ARKit
 import GRPC
 import NIO
+import Starscream
+import SwiftProtobuf
 
 struct Skeleton {
     var joints: [simd_float4x4]
@@ -31,15 +33,69 @@ class DataManager {
 
 
 @MainActor
-class 🥽AppModel: ObservableObject {
+class 🥽AppModel: ObservableObject, WebSocketDelegate {
     @AppStorage("unit") var unit: 📏Unit = .meters
     @Published private(set) var authorizationStatus: ARKitSession.AuthorizationStatus?
+    @Published var currentJpegData: Data? // 存储接收的JPEG二进制数据
+//    @Published var isImmersiveSpaceActive = false // 控制沉浸式空间
+    @Published var isVideoWindowOpen = false      // 控制视频窗口
+    @Published var isTransitioning = false       // 防止按钮重复点击
+    @Published var isVideoStreaming = false
+    @Published var isMainWindowOpen = false // 跟踪主窗口状态
+
+
+    private var websocket: WebSocket?
     
     private let session = ARKitSession()
     private let handTracking = HandTrackingProvider()
     private let worldTracking = WorldTrackingProvider()
     private let sceneReconstruction = SceneReconstructionProvider()
+    
+    nonisolated func didReceive(event: WebSocketEvent, client: WebSocketClient) {
+        switch event {
+        case .connected(let headers):
+            print("websocket is connected:  包头: \(headers)")
+        case .disconnected(let reason, let code):
+            print("websocket is disconnected: \(reason) with code: \(code)")
+        case .text(let string):
+            print("Received text: \(string)")
+        case .binary(let data):
+            print("收到二进制数据: \(data.count) 字节")
+            Task { @MainActor in
+                do {
+                    //解析Protobuf外层协议
+                    let wrapper = try WebsocketMsg(serializedData: data)
+                    print("msgID: \(wrapper.msgID)")
 
+                    guard wrapper.msgID == .videoStreamMsg else { return}
+
+                    // 解析视频载荷
+                    self.currentJpegData = try VideoStreamMsg(serializedData: wrapper.payload).image
+                } catch {
+                    print("Protobuf解析失败：\(error)")
+                }
+            }
+        case .ping(_):
+            break
+        case .pong(_):
+            break
+        case .cancelled:
+            break
+        case .error(let error):
+            print("WebSocket 错误: \(error?.localizedDescription ?? "未知错误")")
+        default: break
+        }
+    }
+    
+    func resetAllStates() {
+        isVideoStreaming = false
+        currentJpegData = nil
+//        isImmersiveSpaceActive = false
+        isVideoWindowOpen = false
+        isTransitioning = false
+        websocket?.disconnect()
+        websocket = nil
+    }
 }
 
 extension 🥽AppModel {
@@ -64,12 +120,9 @@ extension 🥽AppModel {
     func startserver() {
         Task { startServer() }
     }
-    
-    
 }
 
 extension 🥽AppModel {
-    
     @MainActor
     func run_device_tracking(function: () async -> Void, withFrequency hz: UInt64) async {
         while true {
@@ -111,11 +164,12 @@ extension 🥽AppModel {
         guard worldTracking.state == .running else { return }
         
         let deviceAnchor = worldTracking.queryDeviceAnchor(atTimestamp: CACurrentMediaTime())
-        print(" *** device tracking running ")
+        print(" *** device tracking running ***")
 //        print(deviceAnchor?.originFromAnchorTransform)
         guard let deviceAnchor, deviceAnchor.isTracked else { return }
         DataManager.shared.latestHandTrackingData.Head = deviceAnchor.originFromAnchorTransform
-            }
+    }
+        
 
     private func processHandUpdates() async {
         for await update in self.handTracking.anchorUpdates {
@@ -123,9 +177,9 @@ extension 🥽AppModel {
             print("processHandUpates is running.")
             switch handAnchor.chirality {
             case .left:
-                DispatchQueue.main.async {
+                DispatchQueue.main.async { // 确保 UI 相关操作在主线程
                     DataManager.shared.latestHandTrackingData.leftWrist = handAnchor.originFromAnchorTransform
-                    print(handAnchor.originFromAnchorTransform)
+                    print("left wirst：\(handAnchor.originFromAnchorTransform)")
                     
 
                     let jointTypes: [HandSkeleton.JointName] = [
@@ -151,7 +205,7 @@ extension 🥽AppModel {
             case .right:
                 DispatchQueue.main.async {
                     DataManager.shared.latestHandTrackingData.rightWrist = handAnchor.originFromAnchorTransform
-                    print(handAnchor.originFromAnchorTransform)
+                    print("right wirst：\(handAnchor.originFromAnchorTransform)")
                     
                     let jointTypes: [HandSkeleton.JointName] = [
                         .wrist,
@@ -166,20 +220,39 @@ extension 🥽AppModel {
                         guard let joint = handAnchor.handSkeleton?.joint(jointType), joint.isTracked else {
                             continue
                         }
-                        print(index)
+//                        print(index)
                         DataManager.shared.latestHandTrackingData.rightSkeleton.joints[index] = joint.anchorFromJointTransform
                     }
                     
                     print("Updated right hand skeleton")
                 }
             }
-            
         }
-        
-        
     }
 }
 
+extension 🥽AppModel {
+    @MainActor 
+    func startWebSocketClient() {
+        let ip:String = "192.168.10.229"
+        let port = "51111"
+        let request = URLRequest(url: URL(string: "ws://\(ip):\(port)")!)
+        websocket = WebSocket(request: request)
+        websocket?.delegate = self
+        websocket?.connect()
+    }
+    
+    // 新增视频流控制方法
+    func  startVideoStreaming() {
+         isVideoStreaming = true
+         startWebSocketClient()
+     }
+     
+     func stopVideoStreaming() {
+         isVideoStreaming = false
+         websocket?.disconnect()
+     }
+}
 
 
 class HandTrackingServiceProvider: Handtracking_HandTrackingServiceProvider {
@@ -200,8 +273,9 @@ class HandTrackingServiceProvider: Handtracking_HandTrackingServiceProvider {
             let recent_hand = fill_handUpdate()
             print("sending...")
             
-            // Send the update to the client.
-            return context.sendResponse(recent_hand).map { _ in }
+            // Send the update to the client.  是否可以删除 .map{_ in}
+            return context.sendResponse(recent_hand).map
+            { _ in }
         }
 
         // Ensure the task is cancelled when the client disconnects or the stream is otherwise closed.
@@ -237,9 +311,14 @@ func startServer() {
         }
         
         //         Wait on the server's `onClose` future to stop the program from exiting.
-        _ = try! server.flatMap {
-            $0.onClose
-        }.wait()
+//        _ = try! server.flatMap {
+//            $0.onClose
+//        }.wait()
+        do {
+            try server.flatMap { $0.onClose }.wait()
+        } catch {
+            print("服务器启动失败: \(error)")
+        }
     }
 }
 
@@ -280,7 +359,6 @@ func fill_handUpdate() -> Handtracking_HandUpdate {
     
     return handUpdate
 }
-
 
 
 func createMatrix4x4(from jointMatrix: simd_float4x4) -> Handtracking_Matrix4x4 {

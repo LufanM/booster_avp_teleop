@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+enum WebsocketMsgId {
+    UNKNOWN_MSG_ID = 0;
+    ROBOT_STATUS_MSG = 10000;
+    VIDEO_STREAM_MSG = 10001;
+}
+
+message WebsocketMsg {
+    WebsocketMsgId msg_id = 1;
+    string uuid = 2;
+    bytes payload = 3;
+}
+
+message VideoStreamMsg {
+    bytes image = 1;
+}
