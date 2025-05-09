@@ -9,6 +9,7 @@ struct 🌐RealityView: View {
 
     var body: some View {
         RealityView { content, attachments in
+            // 在沉浸式空间中创建3D平面用于渲染视频流
 //            let videoPlane = createVideoPlane()
 //            videoPlane.components.set(🧑HeadTrackingComponent())
 //            content.add(videoPlane)
