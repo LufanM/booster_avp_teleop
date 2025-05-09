@@ -10,9 +10,41 @@ struct ContentView: View {
     @Environment(\.openWindow) var openWindow
     @EnvironmentObject var model: 🥽AppModel
     @State private var isTransitioning = false
-
+    @State private var ipInput: String = ""
+    @State private var showAlert = false
+    @State private var alertMessage = ""
+    
     var body: some View {
         VStack(spacing: 32) {
+            // IP输入模块
+            VStack(spacing: 20) {
+                HStack {
+                    TextField("Server IP", text: $ipInput)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.title)
+                        .keyboardType(.numbersAndPunctuation)
+                        .frame(width: 300)
+                    
+                    Button("Save") {
+                        if isValidIP(ipInput) {
+                            model.serverIP = ipInput
+                            alertMessage = "IP保存成功"
+                        } else {
+                            alertMessage = "无效的IP格式 (示例: 192.168.1.1)"
+                        }
+                        showAlert = true
+                    }
+                    .font(.title)
+                    .padding(.horizontal)
+                }
+                
+                Text("当前视频流服务器IP: \(model.serverIP)")
+                    .font(.title2)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.top, 10) // 上留白
+
+            
             HStack(spacing: 28) {
                 Image(.graph2)
                     .resizable()
@@ -58,8 +90,28 @@ struct ContentView: View {
                 self.model.isMainWindowOpen = false
             }
         }
+        .padding(.bottom, 20) // 下留白
+        .onAppear {
+            ipInput = model.serverIP // 初始化输入框
+        }
+        .alert("提示", isPresented: $showAlert) {
+              Button("OK", role: .cancel) { }
+          } message: {
+              Text(alertMessage)
+          }
     }
     
+    // MARK: - IP验证逻辑
+    private func isValidIP(_ ip: String) -> Bool {
+        let parts = ip.components(separatedBy: ".")
+        guard parts.count == 4 else { return false }
+        for part in parts {
+            guard let num = Int(part), num >= 0 && num <= 255 else { return false }
+        }
+        return true
+    }
+    
+    // MARK: - 获取本地IP地址
     func getIPAddress() -> String {
         var address: String?
         var ifaddr: UnsafeMutablePointer<ifaddrs>? = nil

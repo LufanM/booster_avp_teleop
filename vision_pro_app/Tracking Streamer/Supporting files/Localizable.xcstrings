@@ -69,7 +69,16 @@
         }
       }
     },
+    "OK" : {
+
+    },
     "Open Video Window" : {
+
+    },
+    "Save" : {
+
+    },
+    "Server IP" : {
 
     },
     "Setting" : {
@@ -107,6 +116,12 @@
       }
     },
     "You're on IP address [%@]" : {
+
+    },
+    "当前视频流服务器IP: %@" : {
+
+    },
+    "提示" : {
 
     }
   },

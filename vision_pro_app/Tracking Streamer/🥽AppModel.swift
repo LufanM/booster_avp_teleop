@@ -42,7 +42,7 @@ class 🥽AppModel: ObservableObject, WebSocketDelegate {
     @Published var isTransitioning = false       // 防止按钮重复点击
     @Published var isVideoStreaming = false
     @Published var isMainWindowOpen = false // 跟踪主窗口状态
-
+    @Published var serverIP: String = "192.168.200.66" // 默认设置的机器人ip
 
     private var websocket: WebSocket?
     
@@ -60,12 +60,12 @@ class 🥽AppModel: ObservableObject, WebSocketDelegate {
         case .text(let string):
             print("Received text: \(string)")
         case .binary(let data):
-            print("收到二进制数据: \(data.count) 字节")
+//            print("收到二进制数据: \(data.count) 字节")
             Task { @MainActor in
                 do {
                     //解析Protobuf外层协议
                     let wrapper = try WebsocketMsg(serializedData: data)
-                    print("msgID: \(wrapper.msgID)")
+//                    print("msgID: \(wrapper.msgID)")
 
                     guard wrapper.msgID == .videoStreamMsg else { return}
 
@@ -232,9 +232,9 @@ extension 🥽AppModel {
 }
 
 extension 🥽AppModel {
-    @MainActor 
+    @MainActor
     func startWebSocketClient() {
-        let ip:String = "192.168.10.229"
+        let ip = serverIP // 使用存储的IP
         let port = "51111"
         let request = URLRequest(url: URL(string: "ws://\(ip):\(port)")!)
         websocket = WebSocket(request: request)

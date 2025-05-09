@@ -1,6 +1,6 @@
 # AppVisionTeleOp
 
-Made for Stanford Vision and Learning Group. 
+Made for Teleoperation, This repo is based on . 
 
 ## Introduction
 
