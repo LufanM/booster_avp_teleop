@@ -209,7 +209,7 @@ def main_avp2booster():
 
     # print("对应旋转矩阵：",R.from_euler('zx', np.array([np.pi, -np.pi / 2]), degrees=False).as_matrix())
     # avp_ip = "192.168.101.131"
-    avp_ip = "192.168.200.180"
+    avp_ip = "192.168.200.78"
     streamer = VisionProStreamer(ip=avp_ip, record=False)
     streamer.start_streaming()
 
@@ -280,8 +280,11 @@ def main_avp2booster():
         # print("Right pinch distance:", data['right_pinch_distance'][0])
         # print("right_middle_finger_thumb_distance", data['right_pinch_distance'][1])
         # print("Left pinch distance:", data['left_pinch_distance'])
+        # print("right pinch distance:", data['right_pinch_distance'])
+
         # print("Right wrist roll:", data['right_wrist_roll'])
         # print("Left wrist roll:", data['left_wrist_roll'])
+        # print("right_pinch_distance_middle: ",data['right_pinch_distance_middle'])
         # print("Head:", data["head"][0])
         # print("wrist_rw:", data["right_wrist"][0])
         # print("pos:", data["head"][0][:3, 3] - data["right_wrist"][0][:3, 3])
@@ -290,9 +293,9 @@ def main_avp2booster():
 
         # print(time_s - time.time())
         # Small sleep to roughly target a 16 Hz update rate, due to rerunn render limits
-        # time.sleep(1 / 32)
+        time.sleep(1 / 16)
 
-        if time.time() - start > 20:
+        if time.time() - start > 200:
             break
 
     save_data(data_array, "hand_tracking_xHz.txt")
@@ -300,7 +303,31 @@ def main_avp2booster():
     rr.save("hand_tracking")
     streamer.stop_streaming()
 
+
+def main_avp2booster_test_quest():
+    # rr.init("hand_tracking", spawn=True)
+
+    # print("对应旋转矩阵：",R.from_euler('zx', np.array([np.pi, -np.pi / 2]), degrees=False).as_matrix())
+    # avp_ip = "192.168.101.131"
+    avp_ip = "192.168.200.113"
+    streamer = VisionProStreamer(ip=avp_ip, record=False)
+    streamer.start_streaming()
+
+    data_array = np.empty((0, 13))
+    while True:
+        data = streamer.latest
+
+        global_coordinate = np.array([
+            [1, 0, 0, 0],
+            [0, 1, 0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]
+            ])
+        # left_w_mat = data["left_wrist"][0]
+        # right_w_mat = data["right_wrist"][0]
+
 if __name__ == "__main__":
     # main_avp_raw()
     # main_avp2robot()
     main_avp2booster()
+    # main_avp2booster_test_quest()

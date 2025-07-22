@@ -37,7 +37,19 @@ def get_pinch_distance(finger_messages):
 # def middle_finger_thumb_pinch_distance(finger_messages):
 #     fingers = process_matrices(finger_messages)
 #     thumb = fingers[4, :3, 3]
-    
+
+def get_pinch_distance2(finger_messages): 
+    fingers = process_matrices(finger_messages)
+    index_e = fingers[9, :3, 3]
+    index_s = fingers[6, :3, 3]
+    middle_finger_e = fingers[14, :3, 3]
+    middle_finger_s = fingers[11, :3, 3]
+    ring_finger_e = fingers[19, :3, 3]
+    ring_finger_s = fingers[16, :3, 3]
+    little_finger_e = fingers[24, :3, 3]
+    little_finger_s = fingers[21, :3, 3]
+
+    return np.linalg.norm(index_e - index_s) +  np.linalg.norm(middle_finger_e - middle_finger_s) + np.linalg.norm(ring_finger_e - ring_finger_s) + np.linalg.norm(little_finger_e - little_finger_s)
 
 #     return np.linalg.norm(thumb - index)
 

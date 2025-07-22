@@ -10,7 +10,6 @@ YUP2ZUP = np.array([[[1, 0, 0, 0], [0, 0, -1, 0], [0, 1, 0, 0], [0, 0, 0, 1]]], 
 
 
 class VisionProStreamer:
-
     def __init__(self, ip, record=True):
 
         # Vision Pro IP
@@ -44,13 +43,13 @@ class VisionProStreamer:
         print(" == DATA FLOWING STOP! ==")
 
     def stream(self):
-
         request = handtracking_pb2.HandUpdate()
         try:
             with grpc.insecure_channel(f"{self.ip}:12345") as channel:
                 stub = handtracking_pb2_grpc.HandTrackingServiceStub(channel)
                 responses = stub.StreamHandUpdates(request)
                 for response in responses:
+                    # print(f"receive info : {response.left_hand.wristMatrix}")
                     transformations = {
                         "left_wrist": self.axis_transform
                         @ process_matrix(response.left_hand.wristMatrix),
@@ -65,6 +64,12 @@ class VisionProStreamer:
                             response.left_hand.skeleton.jointMatrices
                         ),
                         "right_pinch_distance": get_pinch_distance(
+                            response.right_hand.skeleton.jointMatrices
+                        ),
+                        "left_pinch_distance_middle": get_pinch_distance2(
+                            response.left_hand.skeleton.jointMatrices
+                        ),
+                        "right_pinch_distance_middle": get_pinch_distance2(
                             response.right_hand.skeleton.jointMatrices
                         ),
                         # "rgb": response.rgb, # TODO: should figure out how to get the rgb image from vision pro and elbow data
