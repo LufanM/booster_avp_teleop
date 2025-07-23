@@ -51,27 +51,15 @@ class VisionProStreamer:
                 for response in responses:
                     # print(f"receive info : {response.left_hand.wristMatrix}")
                     transformations = {
-                        "left_wrist": self.axis_transform
-                        @ process_matrix(response.left_hand.wristMatrix),
-                        "right_wrist": self.axis_transform
-                        @ process_matrix(response.right_hand.wristMatrix),
+                        "left_wrist": self.axis_transform @ process_matrix(response.left_hand.wristMatrix),
+                        "right_wrist": self.axis_transform @ process_matrix(response.right_hand.wristMatrix),
                         "left_fingers": process_matrices(response.left_hand.skeleton.jointMatrices),
-                        "right_fingers": process_matrices(
-                            response.right_hand.skeleton.jointMatrices
-                        ),
+                        "right_fingers": process_matrices(response.right_hand.skeleton.jointMatrices),
                         "head": rotate_head(self.axis_transform @ process_matrix(response.Head)),
-                        "left_pinch_distance": get_pinch_distance(
-                            response.left_hand.skeleton.jointMatrices
-                        ),
-                        "right_pinch_distance": get_pinch_distance(
-                            response.right_hand.skeleton.jointMatrices
-                        ),
-                        "left_pinch_distance_middle": get_pinch_distance2(
-                            response.left_hand.skeleton.jointMatrices
-                        ),
-                        "right_pinch_distance_middle": get_pinch_distance2(
-                            response.right_hand.skeleton.jointMatrices
-                        ),
+                        "left_pinch_distance": get_pinch_distance(response.left_hand.skeleton.jointMatrices),
+                        "right_pinch_distance": get_pinch_distance(response.right_hand.skeleton.jointMatrices),
+                        "left_pinch_distance_middle": get_pinch_distance2(response.left_hand.skeleton.jointMatrices),
+                        "right_pinch_distance_middle": get_pinch_distance2(response.right_hand.skeleton.jointMatrices),
                         # "rgb": response.rgb, # TODO: should figure out how to get the rgb image from vision pro and elbow data
                     }
                     transformations["right_wrist_roll"] = get_wrist_roll(

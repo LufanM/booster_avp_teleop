@@ -16,7 +16,7 @@ from booster_robotics_sdk_python import (
 from avp_teleop import VisionProStreamer
 from avp_map_utility import *
 
-from robot_arm_ik.booster_ik import *
+from robot_arm_ik.booster_arm_ik import *
 from utils.timer import TimerConfig, Timer
 from utils.command import create_prepare_cmd, create_first_frame_rl_cmd, RobotSpec
 from utils.remote_control_service import RemoteControlService
@@ -127,7 +127,7 @@ class Controller:
         start_time = time.perf_counter()
         create_prepare_cmd(self.low_cmd, self.cfg)
 
-        self._send_cmd(self.low_cmd)
+        self.low_cmd_publisher.Write(self.low_cmd)
         send_time = time.perf_counter()
         self.logger.debug(f"Send cmd took {(send_time - start_time)*1000:.4f} ms")
         self.client.ChangeMode(RobotMode.kCustom)
@@ -141,7 +141,7 @@ class Controller:
                 break
             time.sleep(0.1)
         create_first_frame_rl_cmd(self.low_cmd, self.cfg)
-        self._send_cmd(self.low_cmd)
+        self.low_cmd_publisher.Write(self.low_cmd)
         for i in range(RobotSpec.JointCnt):
             self.dof_pos_target[i] = self.low_cmd.motor_cmd[i].q
             self.filtered_dof_pos_target[i] = self.low_cmd.motor_cmd[i].q
@@ -166,7 +166,6 @@ class Controller:
             except Exception as e:
                 self.logger.error(f"Error closing remote control service: {e}")
        
-        
         # Close communication channels
         if hasattr(self, "low_cmd_publisher"):
             try:
@@ -199,7 +198,7 @@ class Controller:
             if time_now < self.next_publish_time:
                 time.sleep(0.001)
                 continue
-            self.next_publish_time += self.cfg["common"]["dt"] * 5
+            self.next_publish_time += self.cfg["common"]["dt"] * 5 # don't < 5, otherwise, the thread receiving AVP data will get blocked
             self.logger.debug(f"Next publish time: {self.next_publish_time}")
 
             self.filtered_dof_pos_target = self.filtered_dof_pos_target * 0.8 + self.dof_pos_target * 0.2
@@ -220,8 +219,7 @@ class Controller:
 
             start_time = time.perf_counter()
             self.low_cmd_publisher.Write(self.low_cmd)
-            # self._send_cmd(self.low_cmd)
-            # self.log_joint_data() #比较容易堵塞
+            # self.log_joint_data() # easy to make blocked when open
             publish_time = time.perf_counter()
             self.logger.debug(f"Publish took {(publish_time - start_time)*1000:.4f} ms")
             time.sleep(0.001)
@@ -235,28 +233,21 @@ class Controller:
         current_time = start_time
         while current_time < end_time:
             current_time = time.time()
-            print(f"时间 {current_time}")
+            print(f"Time {current_time}")
 
             gain = (current_time - start_time) / homing_time
             cmd_q = (1 - gain) * self.state_q + gain * first_q[:14]
             # todo add gravity compensation
             for i in range(2, 16):
-                # self.low_cmd.motor_cmd[i].q = cmd_q[i - 2] # todo 看是不是索引对齐的
                 self.dof_pos_target[i] = cmd_q[i - 2]
             
-            # self._send_cmd(self.low_cmd)
-            
- 
     def run_teleop(self, L_wrist_target, R_wrist_target):
         sol_q, sol_tau = self.arm_ik.solve_ik(L_wrist_target.homogeneous, R_wrist_target.homogeneous)
         for i in range(2, 16):
-            # self.low_cmd.motor_cmd[i].q = sol_q[i - 2]
-            # self.low_cmd.motor_cmd[i].tau = sol_tau[i - 2]
             self.dof_pos_target[i] = sol_q[i - 2]
             self.dof_tau_target[i] = sol_tau[i - 2]
 
 
-        # self._send_cmd(self.low_cmd)
 
 def main():
     import signal
@@ -276,12 +267,12 @@ def main():
     ChannelFactory.Instance().Init(0)
     controller = Controller(cfg_file)
 
-    # receive avp data, retargeting, solve ik, seed cmd
+    # The main steps of teleoperation are: receive AVP data, retargeting, solve inverse kinematics (IK), send commands
     avp_ip = "192.168.200.128"   
     ctl_T = 0.02
 
-    # = 1： The plane of the robot's gripper is aligned with the human's palm. 
-    # = 2： The normal plane of the robot's gripper is aligned with the human's palm.
+    # = 1： The plane of the robot's gripper is parallel to the normal plane of the human palm
+    # = 2： The plane of the robot's gripper is parallel to the plane of the human palm
     tele_mode = 1
 
     while True:
@@ -307,8 +298,7 @@ def main():
                 init_booster_T_wrist_left = T_robot_avp @ init_lw_mat @ T_wrist_left_booster
                 init_booster_T_wrist_right = T_robot_avp @ init_rw_mat @ T_wrist_right_booster
             elif tele_mode == 2:
-                init_booster_T_wrist_left = T_robot_avp @ init_lw_mat @ T_map_grapper_left @ T_wrist_left_booster 
-                init_booster_T_wrist_right = T_robot_avp @ init_rw_mat @ T_map_grapper_right @ T_wrist_right_booster
+                print("not set")
 
             # transform to base head from base world(booster convention), only translation
             init_head_T_wrist_left_pos = init_booster_T_wrist_left[:3, 3] - init_booster_T_head[:3, 3]
@@ -345,9 +335,8 @@ def main():
                         booster_T_wrist_left = T_robot_avp @ left_wrist_mat @ T_wrist_left_booster
                         booster_T_wrist_right = T_robot_avp @ right_wrist_mat @ T_wrist_right_booster
                     elif tele_mode == 2:
-                        booster_T_wrist_left = T_robot_avp @ left_wrist_mat @ T_map_grapper_left @ T_wrist_left_booster 
-                        booster_T_wrist_right =  T_robot_avp @ right_wrist_mat @ T_map_grapper_right @ T_wrist_right_booster
-                    
+                        print("not set")
+                  
                     lw_pos = booster_T_wrist_left[:3, 3]
                     rw_pos = booster_T_wrist_right[:3, 3]
                     lw_body_ori = np.array(booster_T_wrist_left[:3, :3])
@@ -364,7 +353,7 @@ def main():
                     controller.run_teleop(L_tf_target, R_tf_target)
 
                     # print(f"左手： {L_tf_target}")
-                    print(f"右手： {R_tf_target}")
+                    # print(f"右手： {R_tf_target}")
 
                     elapsed_time1 = time.time() - now_time
                     gap_time = ctl_T - elapsed_time1

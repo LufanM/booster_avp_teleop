@@ -16,7 +16,7 @@ from booster_robotics_sdk_python import (
 from avp_teleop import VisionProStreamer
 from avp_map_utility import *
 
-from robot_arm_ik.booster_ik import *
+from robot_arm_ik.booster_arm_ik import *
 from utils.timer import TimerConfig, Timer
 from utils.command import create_prepare_cmd, create_first_frame_rl_cmd, RobotSpec
 from utils.remote_control_service import RemoteControlService
@@ -34,21 +34,6 @@ def listen_for_input():
             should_terminate = True
             break
 
-kp = [  40.0, 40.0,
-        120., 120., 100., 100., 40., 100., 40.,
-        120., 120., 100., 100., 40., 100., 40.,
-        100.0,
-        150.0, 120.0, 120.0, 150.0,  100.0,  100.0,
-        150.0, 120.0, 120.0, 150.0,  100.0,  100.0]
-kd = [  0.65, 0.65,
-        1.5, 1.5, 1.5, 1.5, 0.65, 1.5, 0.65,
-        1.5, 1.5, 1.5, 1.5, 0.65, 1.5, 0.65,
-        1.0,
-        20.0,  12.0,  12.0,  20.0,  0.1,  0.1,
-        20.0,  12.0,  12.0,  20.0,  0.1,  0.1]
-
-
-# 时序待完成
 class Controller:
     def __init__(self, cfg_file):
         np.set_printoptions(precision=5, suppress=True, linewidth=200)
@@ -95,10 +80,6 @@ class Controller:
             self.state_q[i] = motor.q
         # print(f"listen 时间：{time.time()} 计算时间： {self.timer.get_time()}    到状态信息 ：{self.state_q}")
 
-    def _send_cmd(self, cmd: LowCmd):
-        # print(f"publish cmd {cmd.motor_cmd[2].q}")
-        self.low_cmd_publisher.Write(cmd)
-
     def start_custom_mode_conditionally(self):
         print(f"{self.remoteControlService.get_custom_mode_operation_hint()}")
         while True:
@@ -107,8 +88,7 @@ class Controller:
             time.sleep(0.1)
         start_time = time.perf_counter()
         create_prepare_cmd(self.low_cmd, self.cfg)
-
-        self._send_cmd(self.low_cmd)
+        self.low_cmd_publisher.Write(self.low_cmd)
         send_time = time.perf_counter()
         self.logger.debug(f"Send cmd took {(send_time - start_time)*1000:.4f} ms")
         self.client.ChangeMode(RobotMode.kCustom)
@@ -122,7 +102,7 @@ class Controller:
                 break
             time.sleep(0.1)
         create_first_frame_rl_cmd(self.low_cmd, self.cfg)
-        self._send_cmd(self.low_cmd)
+        self.low_cmd_publisher.Write(self.low_cmd)
         print(f"{self.remoteControlService.get_operation_hint()}")
 
     def cleanup(self) -> None:
@@ -171,7 +151,7 @@ class Controller:
             for i in range(2, 16):
                 self.low_cmd.motor_cmd[i].q = cmd_q[i - 2] # todo 看是不是索引对齐的
             
-            self._send_cmd(self.low_cmd)
+            self.low_cmd_publisher.Write(self.low_cmd)
  
     def run_teleop(self, L_wrist_target, R_wrist_target):
         sol_q, sol_tau = self.arm_ik.solve_ik(L_wrist_target.homogeneous, R_wrist_target.homogeneous)
@@ -179,7 +159,7 @@ class Controller:
             self.low_cmd.motor_cmd[i].q = sol_q[i - 2]
             self.low_cmd.motor_cmd[i].tau = sol_tau[i - 2]
 
-        self._send_cmd(self.low_cmd)
+        self.low_cmd_publisher.Write(self.low_cmd)
 
 def main():
     import signal
@@ -199,12 +179,12 @@ def main():
     ChannelFactory.Instance().Init(0)
     controller = Controller(cfg_file)
 
-    # receive avp data, retargeting, solve ik, seed cmd
+    # The main steps of teleoperation are: receive AVP data, retargeting, solve inverse kinematics (IK), send commands
     avp_ip = "192.168.200.128"   
     ctl_T = 0.02
 
-    # = 1： The plane of the robot's gripper is aligned with the human's palm. 
-    # = 2： The normal plane of the robot's gripper is aligned with the human's palm.
+   # = 1： The plane of the robot's gripper is parallel to the normal plane of the human palm
+    # = 2： The plane of the robot's gripper is parallel to the plane of the human palm
     tele_mode = 1
 
     while True:
@@ -230,8 +210,8 @@ def main():
                 init_booster_T_wrist_left = T_robot_avp @ init_lw_mat @ T_wrist_left_booster
                 init_booster_T_wrist_right = T_robot_avp @ init_rw_mat @ T_wrist_right_booster
             elif tele_mode == 2:
-                init_booster_T_wrist_left = T_robot_avp @ init_lw_mat @ T_map_grapper_left @ T_wrist_left_booster 
-                init_booster_T_wrist_right = T_robot_avp @ init_rw_mat @ T_map_grapper_right @ T_wrist_right_booster
+                print("not set")
+
 
             # transform to base head from base world(booster convention), only translation
             init_head_T_wrist_left_pos = init_booster_T_wrist_left[:3, 3] - init_booster_T_head[:3, 3]
@@ -268,8 +248,8 @@ def main():
                         booster_T_wrist_left = T_robot_avp @ left_wrist_mat @ T_wrist_left_booster
                         booster_T_wrist_right = T_robot_avp @ right_wrist_mat @ T_wrist_right_booster
                     elif tele_mode == 2:
-                        booster_T_wrist_left = T_robot_avp @ left_wrist_mat @ T_map_grapper_left @ T_wrist_left_booster 
-                        booster_T_wrist_right =  T_robot_avp @ right_wrist_mat @ T_map_grapper_right @ T_wrist_right_booster
+                        print("not set")
+
                     
                     lw_pos = booster_T_wrist_left[:3, 3]
                     rw_pos = booster_T_wrist_right[:3, 3]
