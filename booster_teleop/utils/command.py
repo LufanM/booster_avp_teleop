@@ -13,7 +13,6 @@ def init_Cmd_T1(low_cmd: LowCmd):
     low_cmd.motor_cmd = motorCmds
 
     for i in range(RobotSpec.JointCnt):
-        # print(f"初始化   {i}")
         low_cmd.motor_cmd[i].q = 0.0
         low_cmd.motor_cmd[i].dq = 0.0
         low_cmd.motor_cmd[i].tau = 0.0

@@ -85,32 +85,27 @@ def main():
                     ctl_T = 0.025
 
                     terminate_pinch = 1 
-                    global should_terminate  # 明确声明使用全局变量
+                    global should_terminate  
                     input_thread = threading.Thread(target=listen_for_input)
                     input_thread.start()
 
                     l_motion_param = GripperMotionParameter()
-                    l_motion_param.position = 500
-                    l_motion_param.force = 100
                     l_motion_param.speed = 2000
                     r_motion_param = GripperMotionParameter()
-                    r_motion_param.position = 500
-                    r_motion_param.force = 100
                     r_motion_param.speed = 2000
 
                     s = VisionProStreamer(ip = avp_ip, record = True)
                     s.start_streaming()
-                    time.sleep(2.5) # 2s 让人手到目标位置
-                    # 记录AVP中获得的初始位姿
+                    time.sleep(2) # Allow wrist reach init target position within 2s.
                     latest = s.latest
                     init_head_mat = latest['head'][0]
                     init_lw_mat = latest['left_wrist'][0]
                     init_rw_mat = latest['right_wrist'][0]
                     init_booster_T_head = T_robot_avp @ init_head_mat @ T_head_booster
-                    # init_booster_T_wrist_left = T_robot_avp @ init_lw_mat @ T_wrist_left_booster
-                    # init_booster_T_wrist_right = T_robot_avp @ init_rw_mat @ T_wrist_right_booster
-                    init_booster_T_wrist_left = T_robot_avp @ init_lw_mat @ T_map_grapper_left @ T_wrist_left_booster 
-                    init_booster_T_wrist_right = T_robot_avp @ init_rw_mat @ T_map_grapper_right @ T_wrist_right_booster 
+                    init_booster_T_wrist_left = T_robot_avp @ init_lw_mat @ T_wrist_left_booster
+                    init_booster_T_wrist_right = T_robot_avp @ init_rw_mat @ T_wrist_right_booster
+                    # init_booster_T_wrist_left = T_robot_avp @ init_lw_mat @ T_map_grapper_left @ T_wrist_left_booster 
+                    # init_booster_T_wrist_right = T_robot_avp @ init_rw_mat @ T_map_grapper_right @ T_wrist_right_booster 
                     
                     # transform to base head from base world(booster convention), only translation
                     init_head_T_wrist_left_pos = init_booster_T_wrist_left[:3, 3] - init_booster_T_head[:3, 3]
@@ -121,12 +116,12 @@ def main():
                     init_rw_ori_rpy = R.from_matrix(init_booster_T_wrist_right[:3, :3]).as_euler('xyz', degrees = False)
                     booster_neck2body_pos = np.array([0.0625, 0.0, 0.30485])
                     booster_head2neck_pos = np.array([0.0613, 0.0, 0.086])
-                    # map_gain = 0.476 / 0.54 # 0.54 is arm length of operator, 0.476 is the robot's 需要调整根据不同的人，主要目的是减少映射偏差
+                    # map_gain = 0.476 / 0.54 # 0.54 is arm length of operator, 0.476 is the robot's 
                     map_gain = 1
                     init_body_lw_pos = init_head_T_wrist_left_pos * map_gain + booster_head2neck_pos + booster_neck2body_pos
                     init_body_rw_pos = init_head_T_wrist_right_pos * map_gain + booster_head2neck_pos + booster_neck2body_pos
                     
-                    # 机器人对应的初始位置，遥操作开始前，前2s,先让人手与robot的动作匹配上
+                    # In the first 2s before the start of teleoperation, match the pos of the human wrists with those of the robot.
                     init_robot_posture_lw = Posture()
                     init_robot_posture_lw.orientation = Orientation(init_lw_ori_rpy[0], init_lw_ori_rpy[1], init_lw_ori_rpy[2])
                     init_robot_posture_lw.position = Position(init_body_lw_pos[0], init_body_lw_pos[1], init_body_lw_pos[2]) 
@@ -135,8 +130,8 @@ def main():
                     init_robot_posture_rw.position = Position(init_body_rw_pos[0], init_body_rw_pos[1], init_body_rw_pos[2])
 
                     res = client.MoveHandEndEffector(init_robot_posture_lw, 2000, B1HandIndex.kLeftHand)
-                    res = client.MoveHandEndEffector(init_robot_posture_rw, 2000, B1HandIndex.kRightHand) # todo 控头
-                    time.sleep(5)
+                    res = client.MoveHandEndEffector(init_robot_posture_rw, 2000, B1HandIndex.kRightHand) 
+                    time.sleep(3)
 
                     print_time = 0 
                     start = time.time()
@@ -159,12 +154,12 @@ def main():
                         left_wrist_mat = latest['left_wrist'][0]
                         right_wrist_mat = latest['right_wrist'][0]
                         booster_T_head = T_robot_avp @ head_mat @ T_head_booster
-                        # booster_T_wrist_left = T_robot_avp @ left_wrist_mat @ T_wrist_left_booster
-                        # booster_T_wrist_right = T_robot_avp @ right_wrist_mat @ T_wrist_right_booster
-                        booster_T_wrist_left = T_robot_avp @ left_wrist_mat @ T_map_grapper_left @ T_wrist_left_booster 
-                        booster_T_wrist_right =  T_robot_avp @ right_wrist_mat @ T_map_grapper_right @ T_wrist_right_booster 
+                        booster_T_wrist_left = T_robot_avp @ left_wrist_mat @ T_wrist_left_booster
+                        booster_T_wrist_right = T_robot_avp @ right_wrist_mat @ T_wrist_right_booster
+                        # booster_T_wrist_left = T_robot_avp @ left_wrist_mat @ T_map_grapper_left @ T_wrist_left_booster 
+                        # booster_T_wrist_right =  T_robot_avp @ right_wrist_mat @ T_map_grapper_right @ T_wrist_right_booster 
 
-                        # # ====Control Method 1: ====
+                        # # ====Tele Control Method 1: ====
                         # #     The teleoperation command are based on the AVP data transferred to the base torso. 
                         # #     Transform to base head from base world(booster convention),only makes the translation
                         # booster_T_wrist_left[:3, 3] = booster_T_wrist_left[:3, 3] - booster_T_head[:3, 3]
@@ -176,14 +171,6 @@ def main():
                         # rw_ori_rpy = R.from_matrix(booster_T_wrist_right[:3, :3]).as_euler('xyz', degrees = False)
                         # lw_pos = booster_T_wrist_left[:3, 3] * map_gain + booster_head2neck_pos + booster_neck2body_pos
                         # rw_pos = booster_T_wrist_right[:3, 3] * map_gain + booster_head2neck_pos + booster_neck2body_pos
-
-                        # # print("左手当前的ori", lw_ori_rpy, "对应的旋转矩阵为：", lw_ori)
-                        # # print("左手当前的ori的偏差", lw_ori_bais, "\n")
-                        # # print("右手当前的posture：", now_right_wrist_pose, "\n")
-                        # # print("右手当前的ori", rw_ori_rpy, "对应的旋转矩阵为：", rw_ori)
-                        # # print("右手当前的pos", pos, "对应的距离向量为：", now_right_wrist_pose[0][:3, 3], "\n")
-                        # # print("右手当前的ori的偏差", rw_ori_bais, "\n")
-                        # # print("右手当前的pos的偏差", rw_pos_bais, "\n")
                         
                         # tar_posture_lw = Posture()
                         # tar_posture_lw.orientation = Orientation(lw_ori_rpy[0], lw_ori_rpy[1], lw_ori_rpy[2])
@@ -192,10 +179,10 @@ def main():
                         # tar_posture_rw.orientation = Orientation(rw_ori_rpy[0], rw_ori_rpy[1], rw_ori_rpy[2])
                         # tar_posture_rw.position = Position(rw_pos[0], rw_pos[1], rw_pos[2])
                         
-                        # res = client.MoveHandEndEffector(tar_posture_lw, 20, B1HandIndex.kLeftHandTele) # 20ms更新一个数据流
+                        # res = client.MoveHandEndEffector(tar_posture_lw, 20, B1HandIndex.kLeftHandTele) # 20ms send a command
                         # res = client.MoveHandEndEffector(tar_posture_rw, 20, B1HandIndex.kRightHandTele) 
 
-                        # ==== Control Method 2: ====
+                        # ==== Tele Control Method 2: ====
                         #      The teleoperation command are based on Init posture + Deviation. So first, it should align the init posture of eef between the robot and avp data. 
                         #      In order to control the head 
                         lw_pos = booster_T_wrist_left[:3, 3]
@@ -216,28 +203,25 @@ def main():
                         tar_posture_rw.position = Position(init_body_rw_pos[0] + rw_pos_bais[0], 
                                                             init_body_rw_pos[1] + rw_pos_bais[1], 
                                                             init_body_rw_pos[2] + rw_pos_bais[2])
-                        res = client.MoveHandEndEffector(tar_posture_lw, ctl_T * 1000, B1HandIndex.kLeftHandTele) # 20ms更新一个数据流
+                        res = client.MoveHandEndEffector(tar_posture_lw, ctl_T * 1000, B1HandIndex.kLeftHandTele)
                         res = client.MoveHandEndEffector(tar_posture_rw, ctl_T * 1000, B1HandIndex.kRightHandTele) 
                         head_ori_rpy = R.from_matrix(booster_T_head[:3, :3]).as_euler('xyz', degrees = False)
                         tar_posture_head = Posture()
                         tar_posture_head.orientation = Orientation(head_ori_rpy[0], head_ori_rpy[1], head_ori_rpy[2])
-                        res = client.MoveHandEndEffector(tar_posture_head, ctl_T * 1000, B1HandIndex.kHeadTele) # 头控制
+                        res = client.MoveHandEndEffector(tar_posture_head, ctl_T * 1000, B1HandIndex.kHeadTele) # head control command
 
                         if rock_v < 0.22:
-                            l_motion_param.position = 50
+                            l_motion_param.position = 0
                             l_motion_param.force = 1200
                             res = client.ControlGripper(l_motion_param, GripperControlMode.kForce, B1HandIndex.kLeftHand)
-                            # print("夹住")
                         else:
                             l_motion_param.position = 1000
                             l_motion_param.force = 100
                             res = client.ControlGripper(l_motion_param, GripperControlMode.kForce, B1HandIndex.kLeftHand)
-                            # print("松开")
                         if rock_v < 0.22:
-                            r_motion_param.position = 50
+                            r_motion_param.position = 0
                             r_motion_param.force = 1200
                             res = client.ControlGripper(r_motion_param, GripperControlMode.kForce, B1HandIndex.kRightHand)
-                            # print("夹住")
                         else:
                             r_motion_param.position = 1000
                             r_motion_param.force = 100
@@ -259,7 +243,7 @@ def main():
                         current_time = time.time() - start # unaccurate, for reference only 
                         new_data[0, 0] = current_time
                         data_array = np.vstack((data_array, new_data))
-                        if(current_time > 300): # 遥操时间
+                        if(current_time > 300): # teleop time
                             print("统计完成：")
                             break
                         # test_end = time.time()
@@ -268,13 +252,12 @@ def main():
                         elapsed_time2 = time.time() - now_time
                         gap_time = ctl_T - elapsed_time2
                         if gap_time < 0:
-                            print("超时，剩余时间：", gap_time)
+                            print("Timeout, remaining time：", gap_time)
                         if gap_time > 0:               
                             time.sleep(gap_time) 
 
                     # 等待输入线程结束
                     save_data(data_array, 'local_sdk_data_20ms.txt')
-                    print("sdk 传输时间最大为：", max_test_time)
 
                     input_thread.join()
                     print("Loop terminated.")
@@ -287,7 +270,7 @@ def main():
             if res != 0:
                 print(f"Request failed: error = {res}")
 
-from robot_arm_ik.booster_ik import *
+from robot_arm_ik.booster_arm_ik import *
 
 def test_pin_ik():
     arm_ik = Booster_T1_7dof_ArmIK(Visualization = True, Test = False, Debug = True)
@@ -300,7 +283,7 @@ def test_pin_ik():
         if input_cmd.lower() == "s":
             s = VisionProStreamer(ip = avp_ip, record = True)
             s.start_streaming()
-            time.sleep(2) # 2s 让人手到目标位置
+            time.sleep(2) 
 
             latest = s.latest
             init_head_mat = latest['head'][0]
@@ -309,8 +292,6 @@ def test_pin_ik():
             init_booster_T_head = T_robot_avp @ init_head_mat @ T_head_booster
             init_booster_T_wrist_left = T_robot_avp @ init_lw_mat @ T_wrist_left_booster
             init_booster_T_wrist_right = T_robot_avp @ init_rw_mat @ T_wrist_right_booster
-            # init_booster_T_wrist_left = T_robot_avp @ init_lw_mat @ T_map_grapper_left @ T_wrist_left_booster 
-            # init_booster_T_wrist_right = T_robot_avp @ init_rw_mat @ T_map_grapper_right @ T_wrist_right_booster 
 
             # transform to base head from base world(booster convention), only translation
             init_head_T_wrist_left_pos = init_booster_T_wrist_left[:3, 3] - init_booster_T_head[:3, 3]
@@ -321,7 +302,6 @@ def test_pin_ik():
             init_body_rw_ori = np.array(init_booster_T_wrist_right[:3, :3])
             booster_neck2body_pos = np.array([0.0625, 0.0, 0.30485])
             booster_head2neck_pos = np.array([0.0613, 0.0, 0.086])
-            # map_gain = 0.476 / 0.54 # 0.54 is arm length of operator, 0.476 is the robot's 需要调整根据不同的人，主要目的是减少映射偏差
             map_gain = 1
             init_body_lw_pos = init_head_T_wrist_left_pos * map_gain + booster_head2neck_pos + booster_neck2body_pos
             init_body_rw_pos = init_head_T_wrist_right_pos * map_gain + booster_head2neck_pos + booster_neck2body_pos
@@ -349,8 +329,6 @@ def test_pin_ik():
                 booster_T_head = T_robot_avp @ head_mat @ T_head_booster
                 booster_T_wrist_left = T_robot_avp @ left_wrist_mat @ T_wrist_left_booster
                 booster_T_wrist_right = T_robot_avp @ right_wrist_mat @ T_wrist_right_booster
-                # booster_T_wrist_left = T_robot_avp @ left_wrist_mat @ T_map_grapper_left @ T_wrist_left_booster 
-                # booster_T_wrist_right =  T_robot_avp @ right_wrist_mat @ T_map_grapper_right @ T_wrist_right_booster 
 
                 # =================== Control Method 2: ============
                 #      The teleoperation command are based on Init posture + Deviation. So first, it should align the init posture of eef between the robot and avp data. 

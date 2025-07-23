@@ -1,10 +1,10 @@
 # AppVisionTeleOp
 
-Made for Stanford Vision and Learning Group. 
+ This App develepment is based on open source repo [VisionProTeleop](https://github.com/Improbable-AI/VisionProTeleop)
 
 ## Introduction
 
-Made for the Booster T1 robot.
+Made for the Booster T1 robot(7dof arm). On the basis of the original app, we have added the first-person view of the robot's head camera.
 
 ## TODOs:
 
@@ -87,6 +87,7 @@ Refer to the image below to see how the axis are defined for your head, wrist, a
 ![](assets/axis_convention.png)
 
 
+
 ### Hand Skeleton used in VisionOS
 
 ![](assets/hand_skeleton_convention.png)
@@ -97,21 +98,3 @@ Refer to the image above to see what order the joints are represented in each ha
 ## Acknowledgements 
 
 This is partially adopted from https://github.com/Improbable-AI/VisionProTeleop
-
-
-<!-- Misc 
-
-If you want to modify the message type, feel free to modify the `.proto` file. You can recompile the gRPC proto file as follows: 
-
-#### for Python
-
-```bash
-python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. handtracking.proto
-```
-
-
-#### for Swift
-```bash
-protoc handtracking.proto --swift_out=. --grpc-swift_out=.
-```
-After you recompile it, make sure you add it to the Xcode so the app can use the latest version of the swift_proto file.  -->
