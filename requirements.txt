@@ -1,0 +1,11 @@
+casadi==3.7.0
+coal-library==3.0.1
+cv-bridge==3.2.1
+grpcio==1.70.0
+grpcio-tools==1.69.0
+ipython==8.12.3
+meshcat==0.3.2
+pin==3.7.0
+numpy==1.26.4
+protobuf==5.29.5
+
