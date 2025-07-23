@@ -3,7 +3,7 @@ import sys, time, threading
 from avp_teleop import VisionProStreamer
 from typing import * 
 import numpy as np
-from avp_map_utility import *
+from utils.avp_map_utility import *
 from scipy.spatial.transform import Rotation as R
 
 # 定义一个全局变量用于线程间通信

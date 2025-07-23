@@ -8,7 +8,7 @@ We developed an APP using Swift as the UI interface for user operations, and als
 
 
 
-# 1 Vison Pro APP
+# 1 Vison Pro APP 
 
 ## 1.1 Introduction
 
@@ -106,15 +106,25 @@ Refer to the image above to see what order the joints are represented in each ha
 
 ## 2.1 安装步骤
 
-1.  从[T1说明书-V1.1](https://booster.feishu.cn/wiki/UvowwBes1iNvvUkoeeVc3p5wnUg)获取booster_robotics_sdk库(指定遥操分支)，参考`README.md`把python binding api 安装到本地
-
-2. 将avp_teleop的包安装到本地，用于avp的通讯，进入[booster_avp_teleop](https://github.com/LufanM/booster_avp_teleop)项目目录
+1. 从[T1说明书-V1.1](https://booster.feishu.cn/wiki/UvowwBes1iNvvUkoeeVc3p5wnUg)获取booster_robotics_sdk库(指定遥操分支)
 
    ```bash
+   git clone https://e.coding.net/generate-gjjleqkqwr/booster-robotics/booster_robotics_sdk_release.git # Please refer to the address on the "T1说明书-V1.1"
+   cd booster_robotics_sdk_release
+   git checkout ***
+   ```
+
+   然后参考`README.md`把python binding api 安装到本地
+
+2. 进入[booster_avp_teleop](https://github.com/LufanM/booster_avp_teleop)项目目录，将avp_teleop的包安装到本地，用于avp的通讯
+
+   ```bash
+   git clone https://github.com/LufanM/booster_avp_teleop
+   cd booster_avp_teleop
    pip install -e .
    ```
 
-3. 参考AVP的APP安装，将app安装至AVP中，具体安装请参考how_to_install_avp_app.md
+3. 安装apple vision pro的APP，用于UI交互，在该APP中启动avp的数据传输，机器人头部相机视频流实时渲染，具体安装请参考[how_to_install_avp_app.md](/how_to_install_avp_app.md)
 
 4. 该仓库使用了[pinocchio](https://github.com/stack-of-tasks/pinocchio)库进行ik解算，所以需要安装pinocchio环境，目前booster_robotics_sdk的python binding api不支持安装在conda的环境中，所以请把pinocchio库安装到本地环境，具体安装请参考章节2
 

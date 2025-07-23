@@ -14,9 +14,9 @@ from booster_robotics_sdk_python import (
     RobotMode,
 )
 from avp_teleop import VisionProStreamer
-from avp_map_utility import *
 
 from robot_arm_ik.booster_arm_ik import *
+from utils.avp_map_utility import *
 from utils.timer import TimerConfig, Timer
 from utils.command import create_prepare_cmd, create_first_frame_rl_cmd, RobotSpec
 from utils.remote_control_service import RemoteControlService
