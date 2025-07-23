@@ -109,7 +109,7 @@ class Booster_T1_7dof_ArmIK:
                 'max_iter':50,
                 'tol':1e-10
             },
-            'print_time':False,# print or not
+            'print_time':False,# print cal time or not
             'calc_lam_p':False # https://github.com/casadi/casadi/wiki/FAQ:-Why-am-I-getting-%22NaN-detected%22in-my-optimization%3F
         }
         self.opti.solver("ipopt", opts)
@@ -266,7 +266,7 @@ if __name__ == "__main__":
     )
 
     times = []
-    for _ in range(1):
+    for _ in range(10):
         start_time = time.time()
         arm_ik.solve_ik(L_tf_target.homogeneous, R_tf_target.homogeneous)
         # 计算耗时（秒）
