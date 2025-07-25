@@ -253,6 +253,13 @@ def main():
     import signal
 
     def signal_handler(sig, frame):
+        global controller
+        if controller:
+            # Mark all threads to stop
+            controller.running = False
+            print("Waiting for threads to safely exit...")
+            # Perform cleanup operations
+            controller.cleanup()
         print("Program fully exited")
         os._exit(0)
 
@@ -265,6 +272,7 @@ def main():
     cfg_file = os.path.join("configs", args.config)
 
     ChannelFactory.Instance().Init(0)
+    global controller
     controller = Controller(cfg_file)
 
     # The main steps of teleoperation are: receive AVP data, retargeting, solve inverse kinematics (IK), send commands
@@ -275,102 +283,101 @@ def main():
     # = 2： The plane of the robot's gripper is parallel to the plane of the human palm
     tele_mode = 1
 
-    while True:
-        input_cmd = input("Please enter the start signal (enter 's' to start the subsequent program):\n")
-        if input_cmd.lower() == "s":
-            global should_terminate  # 明确声明使用全局变量
-            input_thread = threading.Thread(target=listen_for_input)
-            input_thread.start()
-            print(f"时间： {time.time()}")
+    input_cmd = input("Please enter the start signal (enter 's' to start the subsequent program):\n")
+    if input_cmd.lower() == "s":
+        global should_terminate  # 明确声明使用全局变量
+        input_thread = threading.Thread(target=listen_for_input)
+        input_thread.start()
+        print(f"时间： {time.time()}")
 
-            s = VisionProStreamer(ip = avp_ip, record = True)
-            s.start_streaming()
-            controller.start_custom_mode_conditionally()
-            controller.start_rl_gait_conditionally()
-            time.sleep(2) # 2s 让人手到目标位置
+        s = VisionProStreamer(ip = avp_ip, record = True)
+        s.start_streaming()
+        controller.start_custom_mode_conditionally()
+        controller.start_rl_gait_conditionally()
+        time.sleep(2) # 2s 让人手到目标位置
 
-            latest = s.latest
-            init_head_mat = latest['head'][0]
-            init_lw_mat = latest['left_wrist'][0]
-            init_rw_mat = latest['right_wrist'][0]
-            init_booster_T_head = T_robot_avp @ init_head_mat @ T_head_booster
-            if tele_mode == 1:
-                init_booster_T_wrist_left = T_robot_avp @ init_lw_mat @ T_wrist_left_booster
-                init_booster_T_wrist_right = T_robot_avp @ init_rw_mat @ T_wrist_right_booster
-            elif tele_mode == 2:
-                print("not set")
+        latest = s.latest
+        init_head_mat = latest['head'][0]
+        init_lw_mat = latest['left_wrist'][0]
+        init_rw_mat = latest['right_wrist'][0]
+        init_booster_T_head = T_robot_avp @ init_head_mat @ T_head_booster
+        if tele_mode == 1:
+            init_booster_T_wrist_left = T_robot_avp @ init_lw_mat @ T_wrist_left_booster
+            init_booster_T_wrist_right = T_robot_avp @ init_rw_mat @ T_wrist_right_booster
+        elif tele_mode == 2:
+            print("not set")
 
-            # transform to base head from base world(booster convention), only translation
-            init_head_T_wrist_left_pos = init_booster_T_wrist_left[:3, 3] - init_booster_T_head[:3, 3]
-            init_head_T_wrist_right_pos = init_booster_T_wrist_right[:3, 3] - init_booster_T_head[:3, 3]
-            # transform to base body(booster convention), only translation 
-            init_body_lw_ori = np.array(init_booster_T_wrist_left[:3, :3])
-            init_body_rw_ori = np.array(init_booster_T_wrist_right[:3, :3])
-            booster_neck2body_pos = np.array([0.0625, 0.0, 0.30485])
-            booster_head2neck_pos = np.array([0.0613, 0.0, 0.086])
-            map_gain = 1
-            init_body_lw_pos = init_head_T_wrist_left_pos * map_gain + booster_head2neck_pos + booster_neck2body_pos
-            init_body_rw_pos = init_head_T_wrist_right_pos * map_gain + booster_head2neck_pos + booster_neck2body_pos
-            L_tf_target = pin.SE3(init_body_lw_ori, init_body_lw_pos)
-            R_tf_target = pin.SE3(init_body_rw_ori, init_body_rw_pos)
+        # transform to base head from base world(booster convention), only translation
+        init_head_T_wrist_left_pos = init_booster_T_wrist_left[:3, 3] - init_booster_T_head[:3, 3]
+        init_head_T_wrist_right_pos = init_booster_T_wrist_right[:3, 3] - init_booster_T_head[:3, 3]
+        # transform to base body(booster convention), only translation 
+        init_body_lw_ori = np.array(init_booster_T_wrist_left[:3, :3])
+        init_body_rw_ori = np.array(init_booster_T_wrist_right[:3, :3])
+        booster_neck2body_pos = np.array([0.0625, 0.0, 0.30485])
+        booster_head2neck_pos = np.array([0.0613, 0.0, 0.086])
+        map_gain = 1
+        init_body_lw_pos = init_head_T_wrist_left_pos * map_gain + booster_head2neck_pos + booster_neck2body_pos
+        init_body_rw_pos = init_head_T_wrist_right_pos * map_gain + booster_head2neck_pos + booster_neck2body_pos
+        L_tf_target = pin.SE3(init_body_lw_ori, init_body_lw_pos)
+        R_tf_target = pin.SE3(init_body_rw_ori, init_body_rw_pos)
 
-            controller.start_teleop(L_tf_target, R_tf_target)
-            time.sleep(1)
-            while not should_terminate:
-                try:
-                    now_time = time.time()
-                    latest = s.latest
+        controller.start_teleop(L_tf_target, R_tf_target)
+        time.sleep(1)
+        while not should_terminate:
+            try:
+                now_time = time.time()
+                latest = s.latest
 
-                    r_pinch = latest['right_pinch_distance']
-                    terminate_pinch = r_pinch[1]
-                    if terminate_pinch < 0.015:
-                        print("quit teleoperation !!!")
-                        break
-                    
-                    head_mat= latest['head'][0]
-                    left_wrist_mat = latest['left_wrist'][0]
-                    right_wrist_mat = latest['right_wrist'][0]
-                    booster_T_head = T_robot_avp @ head_mat @ T_head_booster
-                    if tele_mode == 1:
-                        booster_T_wrist_left = T_robot_avp @ left_wrist_mat @ T_wrist_left_booster
-                        booster_T_wrist_right = T_robot_avp @ right_wrist_mat @ T_wrist_right_booster
-                    elif tele_mode == 2:
-                        print("not set")
-                  
-                    lw_pos = booster_T_wrist_left[:3, 3]
-                    rw_pos = booster_T_wrist_right[:3, 3]
-                    lw_body_ori = np.array(booster_T_wrist_left[:3, :3])
-                    rw_body_ori = np.array(booster_T_wrist_right[:3, :3])
-                    
-                    lw_pos_bais = (lw_pos - init_booster_T_wrist_left[:3, 3]) * map_gain
-                    rw_pos_bais = (rw_pos - init_booster_T_wrist_right[:3, 3]) * map_gain
-                    lw_body_pos = init_body_lw_pos + lw_pos_bais
-                    rw_body_pos = init_body_rw_pos + rw_pos_bais
-
-                    L_tf_target = pin.SE3(lw_body_ori, lw_body_pos)
-                    R_tf_target = pin.SE3(rw_body_ori, rw_body_pos)
-
-                    controller.run_teleop(L_tf_target, R_tf_target)
-
-                    # print(f"左手： {L_tf_target}")
-                    # print(f"右手： {R_tf_target}")
-
-                    elapsed_time1 = time.time() - now_time
-                    gap_time = ctl_T - elapsed_time1
-                    if gap_time < 0:
-                        print("超时，剩余时间：", gap_time)
-                    if gap_time > 0:               
-                        time.sleep(gap_time) 
-                except KeyboardInterrupt:
-                    print("\nKeyboard interrupt received. Cleaning up...")
-                    controller.client.ChangeMode(RobotMode.kDamping)
-                    controller.cleanup()
+                r_pinch = latest['right_pinch_distance']
+                terminate_pinch = r_pinch[1]
+                if terminate_pinch < 0.015:
+                    print("quit teleoperation !!!")
                     break
                 
-            controller.client.ChangeMode(RobotMode.kDamping)
-            controller.cleanup()
-            s.stop_streaming()
-            print("Loop terminated.")
+                head_mat= latest['head'][0]
+                left_wrist_mat = latest['left_wrist'][0]
+                right_wrist_mat = latest['right_wrist'][0]
+                booster_T_head = T_robot_avp @ head_mat @ T_head_booster
+                if tele_mode == 1:
+                    booster_T_wrist_left = T_robot_avp @ left_wrist_mat @ T_wrist_left_booster
+                    booster_T_wrist_right = T_robot_avp @ right_wrist_mat @ T_wrist_right_booster
+                elif tele_mode == 2:
+                    print("not set")
+                
+                lw_pos = booster_T_wrist_left[:3, 3]
+                rw_pos = booster_T_wrist_right[:3, 3]
+                lw_body_ori = np.array(booster_T_wrist_left[:3, :3])
+                rw_body_ori = np.array(booster_T_wrist_right[:3, :3])
+                
+                lw_pos_bais = (lw_pos - init_booster_T_wrist_left[:3, 3]) * map_gain
+                rw_pos_bais = (rw_pos - init_booster_T_wrist_right[:3, 3]) * map_gain
+                lw_body_pos = init_body_lw_pos + lw_pos_bais
+                rw_body_pos = init_body_rw_pos + rw_pos_bais
+
+                L_tf_target = pin.SE3(lw_body_ori, lw_body_pos)
+                R_tf_target = pin.SE3(rw_body_ori, rw_body_pos)
+
+                controller.run_teleop(L_tf_target, R_tf_target)
+
+                # print(f"左手： {L_tf_target}")
+                # print(f"右手： {R_tf_target}")
+
+                elapsed_time1 = time.time() - now_time
+                gap_time = ctl_T - elapsed_time1
+                if gap_time < 0:
+                    print("超时，剩余时间：", gap_time)
+                if gap_time > 0:               
+                    time.sleep(gap_time) 
+            except KeyboardInterrupt:
+                print("\nKeyboard interrupt received. Cleaning up...")
+                controller.client.ChangeMode(RobotMode.kDamping)
+                # controller.cleanup()
+                break
+            
+        controller.client.ChangeMode(RobotMode.kDamping)
+        # controller.cleanup()
+        s.stop_streaming()
+        print("Loop terminated.")
 
 
 if __name__ == "__main__":

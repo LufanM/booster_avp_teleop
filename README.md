@@ -16,16 +16,29 @@ We developed an APP using Swift as the UI interface for user operations, and als
 
 ## 1.1 环境配置
 
-1. 从[T1说明书-V1.1](https://booster.feishu.cn/wiki/UvowwBes1iNvvUkoeeVc3p5wnUg)获取booster_robotics_sdk_release库(指定遥操分支)
+1. 从[T1说明书-V1.1](https://booster.feishu.cn/wiki/UvowwBes1iNvvUkoeeVc3p5wnUg)获取booster_robotics_sdk_release库(指定遥操分支)，然后参考`README.md` 把python binding api 安装到本地
 
    ```bash
    git clone https://e.coding.net/generate-gjjleqkqwr/booster-robotics/booster_robotics_sdk_release.git # Please refer to the address on the "T1说明书-V1.1"
    cd booster_robotics_sdk_release
    git checkout ***
+   
+   # 编译安装 python binding api sdk到本地
+   sudo ./install.sh
+   pip3 install pybind11
+   pip3 install pybind11-stubgen
+   mkdir build
+   cd build
+   cmake .. -DBUILD_PYTHON_BINDING=on
+   make
+   sudo make install
+   
+   # if pybind11-stubgen cannot be found even after pip install, export PATH
+   # ```bash
+   # export PATH=/home/[user name]/.local/bin:$PATH
+   # ```
    ```
-
-   然后参考`README.md`把python binding api 安装到本地
-
+   
 2. 进入[booster_avp_teleop](https://github.com/LufanM/booster_avp_teleop)项目目录，将avp_teleop的包安装到本地，用于apple vision pro的通讯
 
    ```bash
